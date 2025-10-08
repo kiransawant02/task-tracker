@@ -9,7 +9,7 @@ A simple and responsive task management web application built with HTML, Bootstr
 
 # Getting Started
 1. Clone the Project :
-  git clone https://github.com/your-username/task-tracker.git](https://github.com/kiransawant02/task-tracker.git
+  git clone https://github.com/kiransawant02/task-tracker.git
   cd task-tracker
 
 2. Update the API Base URL :
