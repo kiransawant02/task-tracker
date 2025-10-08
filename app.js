@@ -2,11 +2,6 @@ const API_BASE_URL = "https://localhost:7028"; // Update this if your API base U
 const modal = new bootstrap.Modal(document.getElementById("taskModal"));
 let tasks = [];
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-  return text ? $("<div>").text(text).html() : "";
-}
-
 // Normalize the task object
 function normalizeTask(task) {
   return {
@@ -18,6 +13,17 @@ function normalizeTask(task) {
     dueDate: task.dueDate || "",
     completionDate: task.completedAt || "",
   };
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  const options = { day: "2-digit", month: "short", year: "numeric" };
+  return date.toLocaleDateString("en-GB", options).replace(/ /g, " ");
+}
+
+function normalizeDate(date) {
+  return new Date(date.setHours(0, 0, 0, 0));
 }
 
 // Fetch all tasks
@@ -38,13 +44,6 @@ async function fetchTasks() {
   }
 }
 
-function formatDate(dateString) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  const options = { day: "2-digit", month: "short", year: "numeric" };
-  return date.toLocaleDateString("en-GB", options).replace(/ /g, " ");
-}
-
 // Render tasks
 function renderTasks() {
   const colPending = $("#colPending").empty();
@@ -62,19 +61,19 @@ function renderTasks() {
   tasks.forEach((t) => {
     const task = normalizeTask(t);
 
-    // Apply filters
     if (filterDue && task.dueDate) {
       const taskDate = task.dueDate.split("T")[0];
-      if (taskDate > filterDue) return;
+      if (taskDate !== filterDue) return;
     } else if (filterDue && !task.dueDate) return;
 
     if (filterStatus !== "" && task.status !== Number(filterStatus)) return;
 
     const taskDueDateObj = task.dueDate ? new Date(task.dueDate) : null;
     const isOverdue =
-      task.status !== 2 && taskDueDateObj && taskDueDateObj < now;
+      task.status !== 2 &&
+      taskDueDateObj &&
+      normalizeDate(taskDueDateObj) < normalizeDate(now);
 
-    // Determine badge
     let badgeHtml = "";
     if (task.status === 2 && task.completionDate) {
       badgeHtml = `<span class="badge bg-success ms-1">Completed on ${formatDate(
@@ -90,49 +89,47 @@ function renderTasks() {
     else cardClass = "bg-light";
 
     const card = $(`
-        <div class="card shadow-sm border-0 ${cardClass}">
-          <div class="card-body p-3">
-            <h6 class="card-title fw-bold mb-1">
-              ${escapeHtml(task.title)} ${badgeHtml}
-            </h6>
-            <p class="card-text small mb-2">${escapeHtml(
-              task.description || ""
-            )}</p>
-            <small class="text-muted d-block mb-3">
-              Assigned: ${escapeHtml(task.assignedUser || "-")} | 
-              Due: ${task.dueDate ? formatDate(task.dueDate) : "-"}
-            </small>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-primary edit-task" data-id="${
-                task.taskId
-              }">
-                <i class="bi bi-pencil"></i>
+      <div class="card shadow-sm border-0 ${cardClass}">
+        <div class="card-body p-3">
+          <h6 class="card-title fw-bold mb-1">
+            ${task.title} ${badgeHtml}
+          </h6>
+          <p class="card-text small mb-2">${task.description || ""}</p>
+          <small class="text-muted d-block mb-3">
+            Assigned: ${task.assignedUser || "-"} | 
+            Due: ${task.dueDate ? formatDate(task.dueDate) : "-"}
+          </small>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary edit-task" data-id="${
+              task.taskId
+            }">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-task" data-id="${
+              task.taskId
+            }">
+              <i class="bi bi-trash"></i>
+            </button>
+            <div class="dropdown ms-auto">
+              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                Status
               </button>
-              <button class="btn btn-sm btn-outline-danger delete-task" data-id="${
-                task.taskId
-              }">
-                <i class="bi bi-trash"></i>
-              </button>
-              <div class="dropdown ms-auto">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                  Status
-                </button>
-                <ul class="dropdown-menu">
-                  <li><a class="dropdown-item change-status" href="#" data-id="${
-                    task.taskId
-                  }" data-status="0">Pending</a></li>
-                  <li><a class="dropdown-item change-status" href="#" data-id="${
-                    task.taskId
-                  }" data-status="1">In Progress</a></li>
-                  <li><a class="dropdown-item change-status" href="#" data-id="${
-                    task.taskId
-                  }" data-status="2">Completed</a></li>
-                </ul>
-              </div>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item change-status" href="#" data-id="${
+                  task.taskId
+                }" data-status="0">Pending</a></li>
+                <li><a class="dropdown-item change-status" href="#" data-id="${
+                  task.taskId
+                }" data-status="1">In Progress</a></li>
+                <li><a class="dropdown-item change-status" href="#" data-id="${
+                  task.taskId
+                }" data-status="2">Completed</a></li>
+              </ul>
             </div>
           </div>
         </div>
-      `);
+      </div>
+    `);
 
     if (task.status === 0) {
       colPending.append(card);
@@ -146,7 +143,6 @@ function renderTasks() {
     }
   });
 
-  // Update counters & progress
   $("#countPending").text(countPending);
   $("#countProgress").text(countProgress);
   $("#countCompleted").text(countCompleted);
@@ -181,7 +177,7 @@ $("#taskForm").on("submit", async function (e) {
   try {
     let res;
     if (id) {
-      task.TaskId = Number(id);
+      task.taskId = Number(id);
       res = await fetch(`${API_BASE_URL}/v1/tasks/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -239,7 +235,6 @@ $(document).on("click", ".delete-task", async function () {
         method: "DELETE",
       });
 
-      // Parse JSON response
       const data = await res.json();
 
       if (res.ok && data.result === 1) {
@@ -248,7 +243,7 @@ $(document).on("click", ".delete-task", async function () {
         alert(data.message || "Some error occurred.");
       }
 
-      await fetchTasks(); // Refresh tasks
+      await fetchTasks();
     } catch (err) {
       console.error("Failed to delete task:", err);
       alert("Some error occurred.");
@@ -271,23 +266,23 @@ $(document).on("click", ".change-status", async function (e) {
   }
 });
 
-// Filter by Due Date
+// Filter by Due Date and Status
 $("#filterDue, #filterStatus").on("change", fetchTasks);
 
-// Reset filter
+// Reset Filters
 $(document).on("click", "#resetFilter", function () {
   $("#filterDue").val("");
   $("#filterStatus").val("");
   fetchTasks();
 });
 
-// Initial load// Initial load
+// Initial Load
 $(document).ready(() => {
   fetchTasks();
 
   $("#filterDue, #dueDate").on("focus", function () {
     if (this.showPicker) {
-      this.showPicker(); // Show the native date picker in supported browsers
+      this.showPicker();
     }
   });
 });
