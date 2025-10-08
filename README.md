@@ -7,13 +7,12 @@ A simple and responsive task management web application built with HTML, Bootstr
 - View overall progress via a progress bar
 - Highlight overdue and completed tasks
 
-
-🚀 Getting Started
-1. Clone the Project
+# Getting Started
+1. Clone the Project :
   git clone https://github.com/your-username/task-tracker.git](https://github.com/kiransawant02/task-tracker.git
   cd task-tracker
 
-2. Update the API Base URL
+2. Update the API Base URL :
   Open the app.js file and update the API base URL:
 
 3. Run the App
